@@ -1,0 +1,9 @@
+# .dockerignore 文件是用於 Docker 构建上下文中的一个配置文件。当你使用 docker build 命令构建 Docker 映像时，Docker 引擎会根据当前目录中的所有文件和子目录来创建一个称为“构建上下文”（build context）的内容。这些文件将被发送到 Docker 引擎，然后在构建过程中使用。
+
+# 然而，并不是所有的文件都需要被发送到构建上下文，有些文件可能对于构建映像是不必要的，也可能会增加构建时间和映像的大小。这就是 .dockerignore 文件的作用。
+
+# .dockerignore 文件类似于 .gitignore 文件，它指定了哪些文件和目录在构建上下文中被忽略，不会发送到 Docker 引擎进行构建。这有助于减小构建上下文的大小，提高构建效率，以及确保最终的 Docker 映像不包含不必要的文件。
+Dockerfile
+.dockerignore
+node_modules
+npm-debug.log
