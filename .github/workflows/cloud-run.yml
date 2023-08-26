@@ -1,0 +1,79 @@
+# 定義了這個工作流程的名稱
+name: nextjs-cloud-run
+
+# 指定何時觸發工作流程
+on:
+  # 當代碼被推送到存儲庫時觸發工作流程
+  push:
+    # 只有 master 和 main 分支的推送會觸發工作流程
+    branches:
+      - master
+      - main
+
+# 定義了工作流程中使用的環境變數
+env:
+  # 將 GitHub -> Settings ->  Secrets and variables -> Actions -> Secrets -> CLOUD_RUN_PROJECT_NAME ，並將其作為 PROJECT_ID 環境變數使用
+  PROJECT_ID: ${{ secrets.CLOUD_RUN_PROJECT_NAME }}
+  # 指定 Cloud Run 的部署區域為us-east1
+  REGION: us-east1
+  # 設定存儲庫名稱
+  REPO_NAME: nextjs-cloud-run
+
+# 定義了工作流程的不同工作
+jobs:
+  # 定義了一個名稱為 build-and-deploy 的工作
+  build-and-deploy:
+    # 為這個工作指定了一個名稱，用於識別工作的目的
+    name: Setup, Build, and Deploy
+    # 指定了這個工作運行在最新版本的 Ubuntu 系統上
+    runs-on: ubuntu-latest
+    # 開始定義工作中的步驟
+    steps:
+      # 定義了一個名稱為 Checkout 的步驟
+      - name: Checkout
+        # 使用 GitHub Actions 提供的 actions/checkout 動作，以獲取存儲庫的代碼
+        uses: actions/checkout@v3
+
+      # 定義了一個名稱為 auth 的步驟，同時指定一個唯一的 ID，以便後續步驟可以引用這個步驟的結果
+      - id: "auth"
+        # 使用 google-github-actions/auth 動作，該動作將用於 Google Cloud 身份驗證
+        uses: "google-github-actions/auth@v0"
+        # with: 區塊：這個區塊包含動作的輸入參數
+        with:
+          # 從 GitHub Secrets 讀取名為 CLOUD_RUN_SERVICE_ACCOUNT 的變數
+          credentials_json: "${{ secrets.CLOUD_RUN_SERVICE_ACCOUNT }}"
+
+      # 定義了一個名稱為 Set up Cloud SDK 的步驟，用於設置 Google Cloud SDK
+      - name: Set up Cloud SDK
+        # 使用 Google 提供的 google-github-actions/setup-gcloud 動作，用於設置 Cloud SDK，這是與 Google Cloud 相關的命令行工具
+        uses: google-github-actions/setup-gcloud@v0
+
+      # 定義了一個名稱為 Authorize Docker push 的步驟，用於授權 Docker 推送到 Google Container Registry
+      - name: Authorize Docker push
+        # 使用 gcloud 命令配置 Docker 的 Google Cloud 身份驗證，允許後續步驟將 Docker 映像推送到 Google Container Registry
+        run: gcloud auth configure-docker
+
+      # 定義了一個名稱為 Build and tag the docker image 的步驟，用於構建並為 Docker 映像添加標籤
+      - name: Build and tag the docker image
+        # run: |-：這個步驟使用多行指令運行一個 Docker 命令
+        # 在YAML中，| 符號在多行字符串中稱為折疊（Folded）標記，而 - 符號用於列表。| 符號用於保留原始的換行和縮排，但會將開頭的換行和空格刪除，使文本更清晰可讀。
+        # 當您使用 |- 時，多行文本將保留換行，但開頭的換行和空格會被刪除。這有助於確保文本在解析時更具可讀性，並避免不必要的空行。
+        # 使用 Docker 命令，構建映像並添加指定的標籤，其中包括存儲庫名稱、專案 ID 和 GitHub 提交的 SHA
+        run: |-
+          docker build . --tag gcr.io/$PROJECT_ID/$REPO_NAME:$GITHUB_SHA
+
+      # 定義了一個名稱為 Push the image to the Google Container Registry (GCR) 的步驟，用於將映像推送到 Google Container Registry
+      - name: Push the image to the Google Container Registry (GCR)
+        # 將構建的 Docker 映像推送到 Google Container Registry
+        run: |-
+          docker push gcr.io/$PROJECT_ID/$REPO_NAME:$GITHUB_SHA
+
+      # 定義了一個名稱為 Deploy 的步驟，用於部署應用程序到 Google Cloud Run
+      - name: Deploy
+        # 使用 gcloud 命令部署我們的應用程序到 Google Cloud Run。我們指定了應用程序的參數，包括部署的區域、使用的 Docker 映像、部署的平台（這裡是 "managed"，表示使用托管平台），並使用 --quiet 參數以靜默模式執行部署
+        run: |-
+          gcloud run deploy $REPO_NAME \
+          --region $REGION \
+          --image gcr.io/$PROJECT_ID/$REPO_NAME:$GITHUB_SHA \
+          --platform "managed" \
+          --quiet
