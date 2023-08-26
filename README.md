@@ -75,19 +75,26 @@ example: `docker exec -it 54311ae83b93 sh`
 # Deploy to google cloud run
 
 ## setup GCP Service Account
+
 1. 到 https://console.cloud.google.com/
 2. 創建 project nextjs-cloudrun-app
 3. 點擊左上角漢堡 -> 點擊 Billing -> 點擊左側欄 Billing Account -> 選擇 Manage billing accounts -> 點擊 My projects tab -> 找到 nextjs-cloudrun-app project -> 點擊專案的 Actions ... -> 點擊 Change billing ，把 Bill account 黏到這個專案上  
    一個帳戶只能有五個專案可以 enable billing ，只有 enable billing 的專案才能用 cloud run service
 4. 設定 Service Account
-   1. 點擊左上角漢堡 -> 點擊 IAM & Admin -> 點擊 Service Accounts -> 點擊 Create service account -> 輸入  Service account name -> 點擊 Create and continue
-   2. 點擊 Select a role ，選擇 Basic ，選擇 Editor ，讓這個 service account 有 enable 或 disable api 的權限 -> 點擊 Add another role ，點擊 Select a role ，輸入 cloud run admin ，選擇 Cloud Run Admin ，讓這個 service account 有控制 Cloud Run 的權限，可以 start or stop instaces 等等 -> 點擊 Add another role ，點擊 Select a role ，輸入 storage admin ，選擇 Storage Admin ，讓這個 service account 可以 push 東西到 Container Registry 的權限 -> 點擊 Add another role ，點擊 Select a role ，輸入 service account user ，選擇 Service Account User ，讓這個 service account 可以以 service account 的身份 run operations -> 點擊 Continue 
+   1. 點擊左上角漢堡 -> 點擊 IAM & Admin -> 點擊 Service Accounts -> 點擊 Create service account -> 輸入 Service account name -> 點擊 Create and continue
+   2. 點擊 Select a role ，選擇 Basic ，選擇 Editor ，讓這個 service account 有 enable 或 disable api 的權限 -> 點擊 Add another role ，點擊 Select a role ，輸入 cloud run admin ，選擇 Cloud Run Admin ，讓這個 service account 有控制 Cloud Run 的權限，可以 start or stop instaces 等等 -> 點擊 Add another role ，點擊 Select a role ，輸入 storage admin ，選擇 Storage Admin ，讓這個 service account 可以 push 東西到 Container Registry 的權限 -> 點擊 Add another role ，點擊 Select a role ，輸入 service account user ，選擇 Service Account User ，讓這個 service account 可以以 service account 的身份 run operations -> 點擊 Continue
    3. 點擊 DONE
 5. 找到剛才創建的 service account -> 點擊 Actions ... -> 點擊 Manage keys -> 點擊 Add key -> 點擊 Create new key -> Key type 選擇 JSON -> 點擊 CREATE -> 會下載一個 JSON 金鑰檔
 
 ## setup github actions
+
 1. 創建 .github/workflows/cloud-run.yml 檔案，定義 github actions 詳細代碼請參考此檔案
-2. 到 GitHub -> Settings ->  Secrets and variables -> Actions -> Secrets -> click New repository secret button -> 在 Name 輸入 CLOUD_RUN_PROJECT_NAME 對應到 cloud-run.yml 裡的 ${{ secrets.CLOUD_RUN_PROJECT_NAME }} -> 到 GCP 選擇專案的地方可以看到專案的 ID 複製起來貼到 Secret -> click Add secret button
+2. 到 GitHub -> Settings -> Secrets and variables -> Actions -> Secrets -> click New repository secret button -> 在 Name 輸入 CLOUD_RUN_PROJECT_NAME 對應到 cloud-run.yml 裡的 ${{ secrets.CLOUD_RUN_PROJECT_NAME }} -> 到 GCP 選擇專案的地方可以看到專案的 ID 複製起來貼到 Secret -> click Add secret button
 3. 把 setup GCP Service Account 步驟五拿到的金鑰檔用 base64 encode ，命令是 `base64 -i 金鑰檔位址` ，複製拿到的字串， click New repository secret button -> 在 Name 輸入 CLOUD_RUN_SERVICE_ACCOUNT 對應到 cloud-run.yml 裡的 ${{ secrets.CLOUD_RUN_SERVICE_ACCOUNT }} -> 將剛剛複製的字串貼到 Secret -> click Add secret button  
-   為什麼 json 要 bas64 encode 可以參考這篇文 https://github.com/actions/runner/issues/1942
-   
+   為什麼 json 要 bas64 encode 可以參考這篇文 https://github.com/actions/runner/issues/1942  
+   20230826 實測直接貼 JSON 格式的字串也可以
+
+## setup cloud run
+上面的步驟都順利執行成功之後到 GCP Cloud Run 會看到我們部署了名為 nextjs-cloud-run 的 service ，點擊 nextjs-cloud-run 進到服務，在上方會看到 url ，訪問這段 url 會發現回應是 403 Error: Forbidden ，我們要到 Security 做一些設定才能正常訪問，點擊 Security tab -> 點擊 Allow unauthenticated invocations -> 點擊 Save -> 再次訪問 url 就會看到我們要的畫面了
+### cold start
+點擊上方的 Edit & deploy new revision ，頁面滾動到下方有個 Autoscaling ， Minimum number of instances 預設是 0 ，表示如果這個服務平常沒有被使用的時候是沒有啟動的 instance 的，所以當我們訪問這個服務的時候才會起一個 instance ，稱為 cold start 。因為起 instance 需要一些時間，所以第一次訪問需要等待 instance 起來後才能看到畫面，如果這個服務是一個常駐的服務，你可以把  Minimum number of instances 設成 1 ，就不需要等待 cold start 的時間，但是代價就會是平時至少消耗一個 instance 的 resource
