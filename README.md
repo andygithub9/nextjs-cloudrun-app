@@ -58,6 +58,10 @@ syntax: `docker container ls [OPTIONS]`
 
 - -a Show all containers (default shows just running)
 
+## Stop one or more running containers
+
+syntax: `docker stop [OPTIONS] CONTAINER [CONTAINER...]`
+
 ## Remove one or more containers
 
 syntax: `docker rm [OPTIONS] CONTAINER [CONTAINER...]`
@@ -95,6 +99,9 @@ example: `docker exec -it 54311ae83b93 sh`
    20230826 實測直接貼 JSON 格式的字串也可以
 
 ## setup cloud run
+
 上面的步驟都順利執行成功之後到 GCP Cloud Run 會看到我們部署了名為 nextjs-cloud-run 的 service ，點擊 nextjs-cloud-run 進到服務，在上方會看到 url ，訪問這段 url 會發現回應是 403 Error: Forbidden ，我們要到 Security 做一些設定才能正常訪問，點擊 Security tab -> 點擊 Allow unauthenticated invocations -> 點擊 Save -> 再次訪問 url 就會看到我們要的畫面了
+
 ### cold start
-點擊上方的 Edit & deploy new revision ，頁面滾動到下方有個 Autoscaling ， Minimum number of instances 預設是 0 ，表示如果這個服務平常沒有被使用的時候是沒有啟動的 instance 的，所以當我們訪問這個服務的時候才會起一個 instance ，稱為 cold start 。因為起 instance 需要一些時間，所以第一次訪問需要等待 instance 起來後才能看到畫面，如果這個服務是一個常駐的服務，你可以把  Minimum number of instances 設成 1 ，就不需要等待 cold start 的時間，但是代價就會是平時至少消耗一個 instance 的 resource
+
+點擊上方的 Edit & deploy new revision ，頁面滾動到下方有個 Autoscaling ， Minimum number of instances 預設是 0 ，表示如果這個服務平常沒有被使用的時候是沒有啟動的 instance 的，所以當我們訪問這個服務的時候才會起一個 instance ，稱為 cold start 。因為起 instance 需要一些時間，所以第一次訪問需要等待 instance 起來後才能看到畫面，如果這個服務是一個常駐的服務，你可以把 Minimum number of instances 設成 1 ，就不需要等待 cold start 的時間，但是代價就會是平時至少消耗一個 instance 的 resource
